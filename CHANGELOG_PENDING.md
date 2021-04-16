@@ -56,6 +56,7 @@
   [#6771](https://github.com/pulumi/pulumi/pull/6771)
   [#6781](https://github.com/pulumi/pulumi/pull/6781)
   [#6786](https://github.com/pulumi/pulumi/pull/6786)
+  [#6795](https://github.com/pulumi/pulumi/pull/6795)
 
 - [sdk/go] Support defining remote components in Go.
   [#6403](https://github.com/pulumi/pulumi/pull/6403)

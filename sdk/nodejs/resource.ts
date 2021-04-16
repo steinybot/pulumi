@@ -920,7 +920,7 @@ function isPromiseOrOutput(val: any): boolean {
     return val instanceof Promise || Output.isInstance(val);
 }
 
-function expandProviders(options: ComponentResourceOptions) {
+export function expandProviders(options: ComponentResourceOptions) {
     // Move 'provider' up to 'providers' if we have it.
     if (options.provider) {
         options.providers = [options.provider];
