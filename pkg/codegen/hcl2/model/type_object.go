@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/pulumi/pulumi/pkg/v3/codegen/hcl2/syntax"
+	"github.com/pulumi/pulumi/pkg/v3/codegen/schema"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/util/contract"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
@@ -108,6 +109,19 @@ func (t *ObjectType) equals(other Type, seen map[Type]struct{}) bool {
 	for k, t := range t.Properties {
 		if u, ok := otherObject.Properties[k]; !ok || !t.equals(u, seen) {
 			return false
+		}
+	}
+	if len(t.Annotations) != len(otherObject.Annotations) {
+		return false
+	}
+	for i, at := range t.Annotations {
+		ao := otherObject.Annotations[i]
+		if atv, ok := at.(*schema.ObjectType); ok {
+			if aov, ok := ao.(*schema.ObjectType); ok {
+				if atv.Token != aov.Token {
+					return false
+				}
+			}
 		}
 	}
 	return true
