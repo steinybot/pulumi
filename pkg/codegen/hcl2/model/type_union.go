@@ -34,6 +34,8 @@ type UnionType struct {
 	s string
 }
 
+// NewUnionTypeAnnotated creates a new union type with the given element types and annotations.
+// Any element types that are union types are replaced with their element types.
 func NewUnionTypeAnnotated(types []Type, annotations ...interface{}) Type {
 	var elementTypes []Type
 	for _, t := range types {

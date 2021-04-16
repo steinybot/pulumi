@@ -285,28 +285,31 @@ func GetSchemaForType(t model.Type) (schema.Type, bool) {
 	}
 }
 
-func GetSchemaObjMap(t model.Type) map[string]model.Type {
+// GetDiscriminatedUnionObjectMapping calculates a map of type names to object types for a given
+// union type.
+func GetDiscriminatedUnionObjectMapping(t *model.UnionType) map[string]model.Type {
+	mapping := map[string]model.Type{}
+	for _, t := range t.ElementTypes {
+		k, v := getDiscriminatedUnionObjectItem(t)
+		mapping[k] = v
+	}
+	return mapping
+}
+
+func getDiscriminatedUnionObjectItem(t model.Type) (string, model.Type) {
 	switch t := t.(type) {
 	case *model.ListType:
-		return GetSchemaObjMap(t.ElementType)
+		return getDiscriminatedUnionObjectItem(t.ElementType)
 	case *model.ObjectType:
 		if bla, ok := GetSchemaForType(t); ok {
 			if foo, ok := bla.(*schema.ObjectType); ok {
-				return map[string]model.Type{foo.Token: t}
+				return foo.Token, t
 			}
 		}
 	case *model.OutputType:
-		return GetSchemaObjMap(t.ElementType)
+		return getDiscriminatedUnionObjectItem(t.ElementType)
 	case *model.PromiseType:
-		return GetSchemaObjMap(t.ElementType)
-	case *model.UnionType:
-		mapping := map[string]model.Type{}
-		for _, t := range t.ElementTypes {
-			for k, v := range GetSchemaObjMap(t) {
-				mapping[k] = v
-			}
-		}
-		return mapping
+		return getDiscriminatedUnionObjectItem(t.ElementType)
 	}
-	return map[string]model.Type{}
+	return "", nil
 }

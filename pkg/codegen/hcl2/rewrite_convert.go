@@ -91,8 +91,9 @@ func rewriteConversions(x model.Expression, to model.Type) (model.Expression, bo
 	case *model.IndexExpression:
 		x.Key, _ = rewriteConversions(x.Key, x.KeyType())
 	case *model.ObjectConsExpression:
-		if v := resolveDiscriminatedUnions(to, x); v != nil {
+		if v := resolveDiscriminatedUnions(x, to); v != nil {
 			to = v
+			typecheck = true
 		}
 		for i := range x.Items {
 			item := &x.Items[i]
@@ -147,47 +148,41 @@ func rewriteConversions(x model.Expression, to model.Type) (model.Expression, bo
 // resolveDiscriminatedUnions reduces discriminated unions of object types to the type that matches
 // the shape of the given object cons expression. A given object expression would only match a single
 // case of the union.
-func resolveDiscriminatedUnions(modelType model.Type, x *model.ObjectConsExpression) model.Type {
-	switch typ := modelType.(type) {
-	case *model.OutputType:
-		if el := resolveDiscriminatedUnions(typ.ElementType, x); el != nil {
-			return model.NewOutputType(el)
+func resolveDiscriminatedUnions(obj *model.ObjectConsExpression, modelType model.Type) model.Type {
+	modelUnion, ok := modelType.(*model.UnionType)
+	if !ok {
+		return nil
+	}
+	schType, ok := GetSchemaForType(modelUnion)
+	if !ok {
+		return nil
+	}
+	union, ok := schType.(*schema.UnionType)
+	if !ok || union.Discriminator == "" {
+		return nil
+	}
+
+	objTypes := GetDiscriminatedUnionObjectMapping(modelUnion)
+	for _, item := range obj.Items {
+		name, ok := item.Key.(*model.LiteralValueExpression)
+		if !ok || name.Value.AsString() != union.Discriminator {
+			continue
 		}
-	case *model.UnionType:
-		if scht, ok := GetSchemaForType(modelType); ok {
-			if unt, ok := scht.(*schema.UnionType); ok && unt.Discriminator != "" {
-				for _, item := range x.Items {
-					if name, ok := item.Key.(*model.LiteralValueExpression); ok {
-						if name.Value.AsString() == unt.Discriminator {
-							objTypes := GetSchemaObjMap(typ)
-							if lit, ok := item.Value.(*model.TemplateExpression); ok {
-								discriminatorValue := lit.Parts[0].(*model.LiteralValueExpression).Value.AsString()
-								if ref, ok := unt.Mapping[discriminatorValue]; ok {
-									if t, ok := objTypes[strings.TrimPrefix(ref, "#/types/")]; ok {
-										return t
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+
+		lit, ok := item.Value.(*model.TemplateExpression)
+		if !ok {
+			continue
 		}
-		var types []model.Type
-		for _, el := range typ.ElementTypes {
-			if elt := resolveDiscriminatedUnions(el, x); elt != nil {
-				types = append(types, elt)
-			}
+
+		discriminatorValue := lit.Parts[0].(*model.LiteralValueExpression).Value.AsString()
+		if ref, ok := union.Mapping[discriminatorValue]; ok {
+			discriminatorValue = strings.TrimPrefix(ref, "#/types/")
 		}
-		switch len(types) {
-		case 0:
-			return nil
-		case 1:
-			return types[0]
-		default:
-			return model.NewUnionType(types...)
+		if t, ok := objTypes[discriminatorValue]; ok {
+			return t
 		}
 	}
+
 	return nil
 }
 
